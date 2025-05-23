@@ -59,6 +59,8 @@ jobs:
             echo '❌ Tests failed!' >> $GITHUB_STEP_SUMMARY
           fi
 
+      - name: Rename coverage report for upload
+        run: mv result.log result_${{ matrix.node-version }}.log
       - name: Upload full coverage report as artifact
         if: always()
         uses: actions/upload-artifact@v4

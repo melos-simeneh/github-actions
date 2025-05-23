@@ -13,10 +13,12 @@ jobs:
 
     strategy:
       matrix:
-        node-version: ["20"]
+        node-version: ["18", "20", "21"]
+
     defaults:
       run:
         working-directory: nodejs
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -47,21 +49,22 @@ jobs:
           echo '### 📊 Node.js Test Coverage Report' >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
           if [ -f result.log ]; then
-            # Show summary section (usually last 20-30 lines)
             grep -A 30 -i 'coverage summary' result.log || tail -n 30 result.log
           else
             echo "No test results found"
           fi >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
 
-          # Add failure notice if tests failed
           if [ "${?}" != "0" ]; then
             echo '❌ Tests failed!' >> $GITHUB_STEP_SUMMARY
           fi
+
+      - name: Rename coverage report for upload
+        run: mv result.log result_${{ matrix.node-version }}.log
 
       - name: Upload full coverage report as artifact
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: coverage-report-node${{ matrix.node-version }}
-          path: fastapi/result_${{ matrix.node-version }}.log
+          path: nodejs/result_${{ matrix.node-version }}.log

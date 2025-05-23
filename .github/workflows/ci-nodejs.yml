@@ -26,37 +26,51 @@ jobs:
           node-version: ${{ matrix.node-version }}
           cache: "npm"
 
-      - name: Verify Node.js and npm versions
-        run: |
-          node --version
-          npm --version
-
       - name: Install dependencies
         run: npm ci
 
       - name: Run tests with coverage
         run: |
-          npm test -- --coverage --coverageReporters=text-lcov > coverage.log
+          npm test -- --coverage --coverageReporters=json-summary
           npm run test:ci  # If you have a separate CI test script
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
-        if: success() # Only upload on successful tests
+        if: success()
 
-      - name: Upload test results
-        uses: actions/upload-artifact@v3
-        if: always()
-        with:
-          name: test-results
-          path: |
-            coverage.log
-            ./coverage
-
-      - name: Summary
+      - name: Store test results
         if: always()
         run: |
-          echo '### 🧪 Test Results' >> $GITHUB_STEP_SUMMARY
+          mkdir -p test-results
+          [ -f coverage/coverage-summary.json ] && cp coverage/coverage-summary.json test-results/
+          [ -f test-output.xml ] && cp test-output.xml test-results/ || echo "No JUnit output found"
+
+      - name: Upload test artifacts
+        uses: actions/upload-artifact@v4 # Updated to v4
+        if: always()
+        with:
+          name: test-results-node-${{ matrix.node-version }}
+          path: |
+            test-results/
+            coverage/
+          retention-days: 7
+          compression-level: 9 # Better compression
+
+      - name: Install jq if needed
+        if: always()
+        run: sudo apt-get install -y jq
+
+      - name: Generate summary
+        if: always()
+        run: |
+          echo '### 📊 Test Results' >> $GITHUB_STEP_SUMMARY
           echo "**Node Version:** ${{ matrix.node-version }}" >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          [ -f coverage.log ] && head -n 30 coverage.log >> $GITHUB_STEP_SUMMARY || echo "No test results found" >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
+
+          if [ -f coverage/coverage-summary.json ]; then
+            echo '### Coverage Summary' >> $GITHUB_STEP_SUMMARY
+            echo '```json' >> $GITHUB_STEP_SUMMARY
+            jq -r '.total' coverage/coverage-summary.json >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          else
+            echo 'No coverage data available' >> $GITHUB_STEP_SUMMARY
+          fi

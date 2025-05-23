@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: nodejs_backend
+        working-directory: nodejs
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -41,5 +41,5 @@ jobs:
         run: |
           echo '### Node.js Test Coverage Report' >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
-          tail -n 20 result.log >> $GITHUB_STEP_SUMMARY
+          [ -f result.log ] && tail -n 20 result.log >> $GITHUB_STEP_SUMMARY || echo "No test results found" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY

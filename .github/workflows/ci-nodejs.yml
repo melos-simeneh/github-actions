@@ -14,13 +14,20 @@ jobs:
         working-directory: nodejs
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v3
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: "20"
-          cache: "npm"
+
+      - name: Cache node modules
+        uses: actions/cache@v3
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
 
       - name: Install dependencies
         run: npm install
@@ -28,19 +35,11 @@ jobs:
       - name: Run tests with coverage
         run: |
           npm test -- --coverage --coverageReporters=text > result.log
-          cat result.log  # Print to console for immediate visibility
 
       - name: Upload coverage summary to GitHub
         if: always()
         run: |
           echo '### Node.js Test Coverage Report' >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
-          [ -f result.log ] && grep -A 20 "Coverage summary" result.log >> $GITHUB_STEP_SUMMARY || echo "No test results found" >> $GITHUB_STEP_SUMMARY
+          [ -f result.log ] && tail -n 20 result.log >> $GITHUB_STEP_SUMMARY || echo "No test results found" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
-
-      - name: Upload full test logs
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-results
-          path: nodejs/result.log

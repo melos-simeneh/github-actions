@@ -38,7 +38,7 @@ jobs:
 
       - name: Run tests with coverage
         run: |
-          pytest --cov=app --cov-report=term | tee result.log
+          pytest --cov=app --cov-report=term > result.log
 
       - name: Upload coverage to GitHub summary
         if: always()
@@ -47,3 +47,10 @@ jobs:
           echo '```' >> $GITHUB_STEP_SUMMARY
           [ -f result.log ] && tail -n 20 result.log >> $GITHUB_STEP_SUMMARY || echo "No test results found" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload full coverage report as artifact
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: coverage-report
+          path: fastapi/result.log

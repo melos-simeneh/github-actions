@@ -20,7 +20,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Set up Python
         uses: actions/setup-python@v4
@@ -39,22 +39,23 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
+          pip install pytest pytest-cov
 
       - name: Run tests with coverage
         run: |
-          pytest --cov=app --cov-report=term > result.log
+          pytest --cov=app --cov-report=term > result_${{ matrix.python-version }}.log
 
       - name: Upload coverage to GitHub summary
         if: always()
         run: |
-          echo '### Test Coverage Report' >> $GITHUB_STEP_SUMMARY
+          echo '### Test Coverage Report (Python ${{ matrix.python-version }})' >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
-          [ -f result.log ] && tail -n 20 result.log >> $GITHUB_STEP_SUMMARY || echo "No test results found" >> $GITHUB_STEP_SUMMARY
+          [ -f result_${{ matrix.python-version }}.log ] && tail -n 20 result_${{ matrix.python-version }}.log >> $GITHUB_STEP_SUMMARY || echo "No test results found" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
 
       - name: Upload full coverage report as artifact
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: coverage-report
-          path: fastapi/result.log
+          name: coverage-report-py${{ matrix.python-version }}
+          path: fastapi/result_${{ matrix.python-version }}.log

@@ -58,3 +58,10 @@ jobs:
           if [ "${?}" != "0" ]; then
             echo '❌ Tests failed!' >> $GITHUB_STEP_SUMMARY
           fi
+
+      - name: Upload full coverage report as artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report-node${{ matrix.node-version }}
+          path: fastapi/result_${{ matrix.node-version }}.log

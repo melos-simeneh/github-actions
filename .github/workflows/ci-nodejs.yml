@@ -9,37 +9,40 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: ["18", "20", "21"]
     defaults:
       run:
         working-directory: nodejs
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
-
-      - name: Cache node modules
-        uses: actions/cache@v3
-        with:
-          path: ~/.npm
-          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-node-
+          node-version: ${{ matrix.node-version }}
+          cache: "npm"
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci
 
       - name: Run tests with coverage
         run: |
-          npm test -- --coverage --coverageReporters=text | tee result.log
+          npm test -- --coverage --coverageReporters=text > result-${{ matrix.node-version }}.log
+          cat result-${{ matrix.node-version }}.log
 
-      - name: Upload coverage summary to GitHub
+      - name: Upload coverage summary
         if: always()
         run: |
-          echo '### Node.js Test Coverage Report' >> $GITHUB_STEP_SUMMARY
+          echo "### Node.js ${{ matrix.node-version }} Coverage" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
-          [ -f result.log ] && tail -n 20 result.log >> $GITHUB_STEP_SUMMARY || echo "No test results found" >> $GITHUB_STEP_SUMMARY
+          grep -A 10 "Coverage summary" result-${{ matrix.node-version }}.log >> $GITHUB_STEP_SUMMARY || echo "No coverage data" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-${{ matrix.node-version }}
+          path: nodejs/result-${{ matrix.node-version }}.log

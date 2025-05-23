@@ -17,18 +17,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
+      - name: Setup Node.js with cache
         uses: actions/setup-node@v4
         with:
           node-version: "20"
-
-      - name: Cache node modules
-        uses: actions/cache@v4
-        with:
-          path: ~/.npm
-          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-node-
+          cache: "npm"
 
       - name: Install dependencies
         run: npm install
@@ -36,21 +29,29 @@ jobs:
       - name: Run tests with coverage
         run: |
           npm test -- --coverage --coverageReporters=text > result.log
+          echo $? > test-exit-code.txt
 
-      - name: Upload coverage summary
+      - name: Upload coverage summary to GitHub
         if: always()
         run: |
           echo '### 📊 Node.js Test Coverage Report' >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
           if [ -f result.log ]; then
-            # Show summary section (usually last 20-30 lines)
             grep -A 30 -i 'coverage summary' result.log || tail -n 30 result.log
           else
             echo "No test results found"
           fi >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
 
-          # Add failure notice if tests failed
-          if [ "${?}" != "0" ]; then
+          TEST_EXIT_CODE=$(cat test-exit-code.txt)
+          if [ "$TEST_EXIT_CODE" != "0" ]; then
             echo '❌ Tests failed!' >> $GITHUB_STEP_SUMMARY
+            exit 1
           fi
+
+      - name: Upload coverage report artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: nodejs/coverage/

@@ -28,8 +28,10 @@ jobs:
 
       - name: Run tests with coverage
         run: |
-          npm test -- --coverage --coverageReporters=text > result.log
-          echo $? > test-exit-code.txt
+          set +e
+          npm test -- --coverage --coverageReporters=text > result.log 2>&1
+          echo "$?" > test-exit-code.txt
+          set -e
 
       - name: Upload coverage summary to GitHub
         if: always()

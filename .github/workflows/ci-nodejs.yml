@@ -8,38 +8,55 @@ on:
 
 jobs:
   test:
+    name: Test (Node ${{ matrix.node-version }})
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: ["18", "20", "21"]
     defaults:
       run:
         working-directory: nodejs
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
-      - name: Setup Node.js
+      - name: Setup Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: ${{ matrix.node-version }}
+          cache: "npm"
 
-      - name: Cache node modules
-        uses: actions/cache@v3
-        with:
-          path: ~/.npm
-          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-node-
+      - name: Verify Node.js and npm versions
+        run: |
+          node --version
+          npm --version
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci
 
       - name: Run tests with coverage
         run: |
-          npm test -- --coverage --coverageReporters=text > result.log
+          npm test -- --coverage --coverageReporters=text-lcov > coverage.log
+          npm run test:ci  # If you have a separate CI test script
 
-      - name: Upload coverage summary to GitHub
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        if: success() # Only upload on successful tests
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: test-results
+          path: |
+            coverage.log
+            ./coverage
+
+      - name: Summary
         if: always()
         run: |
-          echo '### Node.js Test Coverage Report' >> $GITHUB_STEP_SUMMARY
+          echo '### 🧪 Test Results' >> $GITHUB_STEP_SUMMARY
+          echo "**Node Version:** ${{ matrix.node-version }}" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
-          [ -f result.log ] && tail -n 20 result.log >> $GITHUB_STEP_SUMMARY || echo "No test results found" >> $GITHUB_STEP_SUMMARY
+          [ -f coverage.log ] && head -n 30 coverage.log >> $GITHUB_STEP_SUMMARY || echo "No test results found" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY

@@ -8,8 +8,12 @@ on:
 
 jobs:
   test:
-    name: "Test"
+    name: Test (Node ${{ matrix.node-version }})
     runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: ["20"]
     defaults:
       run:
         working-directory: nodejs
@@ -17,43 +21,40 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Node.js with cache
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
-          cache: "npm"
+          node-version: ${{ matrix.node-version }}
+
+      - name: Cache node modules
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
 
       - name: Install dependencies
         run: npm install
 
       - name: Run tests with coverage
         run: |
-          set +e
-          npm test -- --coverage --coverageReporters=text > result.log 2>&1
-          echo "$?" > test-exit-code.txt
-          set -e
+          npm test -- --coverage --coverageReporters=text > result.log
 
-      - name: Upload coverage summary to GitHub
+      - name: Upload coverage summary
         if: always()
         run: |
           echo '### 📊 Node.js Test Coverage Report' >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
           if [ -f result.log ]; then
+            # Show summary section (usually last 20-30 lines)
             grep -A 30 -i 'coverage summary' result.log || tail -n 30 result.log
           else
             echo "No test results found"
           fi >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
 
-          TEST_EXIT_CODE=$(cat test-exit-code.txt)
-          if [ "$TEST_EXIT_CODE" != "0" ]; then
+          # Add failure notice if tests failed
+          if [ "${?}" != "0" ]; then
             echo '❌ Tests failed!' >> $GITHUB_STEP_SUMMARY
-            exit 1
           fi
-
-      - name: Upload coverage report artifact
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: coverage-report
-          path: nodejs/coverage/
